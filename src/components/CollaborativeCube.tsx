@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Mesh } from "three";
+import { Mesh, Plane, Vector3 } from "three";
 import { useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, GizmoHelper, GizmoViewport } from "@react-three/drei";
 import {
@@ -8,7 +8,6 @@ import {
   setCubePosition,
   setCubeRotation,
   yCube,
-  ydoc,
   type Vec3,
 } from "../yjs";
 
@@ -40,10 +39,13 @@ export function CollaborativeScene() {
 
 function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   const meshRef = useRef<Mesh | null>(null);
-  const { viewport, size, controls } = useThree((s) => ({
+  const dragPlaneRef = useRef<Plane>(new Plane());
+  const dragOffsetRef = useRef<Vector3>(new Vector3());
+  const { controls, camera } = useThree((s) => ({
     viewport: s.viewport,
     size: s.size,
-    controls: s.controls as any,
+    controls: s.controls,
+    camera: s.camera,
   }));
   const [position, setPositionState] = useState<Vec3>(getCubePosition());
   const [rotation, setRotationState] = useState<Vec3>(getCubeRotation());
@@ -70,7 +72,7 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
     }
   });
 
-  // Simple 2D drag on X/Y based on pointer movement
+  // Drag: make cube follow the pointer on a plane parallel to the camera at the cube's depth
   const onPointerDown = (e: any) => {
     e.stopPropagation();
     try {
@@ -81,6 +83,19 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
       const c: any = controls;
       if (c) c.enabled = false;
     } catch {}
+    if (meshRef.current) {
+      const normal = new Vector3();
+      camera.getWorldDirection(normal);
+      // Plane through current position, normal facing camera direction
+      const pos = meshRef.current.position.clone();
+      dragPlaneRef.current.setFromNormalAndCoplanarPoint(normal, pos);
+      const hit = e.ray.intersectPlane(dragPlaneRef.current, new Vector3());
+      if (hit) {
+        dragOffsetRef.current.copy(pos.sub(hit));
+      } else {
+        dragOffsetRef.current.set(0, 0, 0);
+      }
+    }
   };
   const onPointerUp = (e: any) => {
     e.stopPropagation();
@@ -96,18 +111,15 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   const onPointerMove = (e: any) => {
     if (!isDragging) return;
     e.stopPropagation();
-    // Convert screen pixel delta to world-units using current viewport
-    const deltaX = (e.movementX / size.width) * viewport.width;
-    const deltaY = (e.movementY / size.height) * viewport.height;
-    setPositionState((prev) => {
-      const clamp = (n: number, min: number, max: number) =>
-        Math.min(Math.max(n, min), max);
-      const nextX = clamp(prev[0] + deltaX, -8, 8);
-      const nextY = clamp(prev[1] - deltaY, -5, 5);
-      const nextPos: Vec3 = [nextX, nextY, prev[2]];
-      setCubePosition(nextPos);
-      return nextPos;
-    });
+    // Compute intersection with drag plane and follow cursor
+    const hit = e.ray.intersectPlane(dragPlaneRef.current, new Vector3());
+    if (!hit) return;
+    const next = hit.add(dragOffsetRef.current);
+    const clamp = (n: number, min: number, max: number) =>
+      Math.min(Math.max(n, min), max);
+    const nextPos: Vec3 = [clamp(next.x, -8, 8), clamp(next.y, -5, 5), next.z];
+    setPositionState(nextPos);
+    setCubePosition(nextPos);
   };
 
   return (
