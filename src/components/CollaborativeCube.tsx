@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mesh, Plane, Vector3 } from "three";
 import { useThree, useFrame } from "@react-three/fiber";
+import type { ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, GizmoHelper, GizmoViewport } from "@react-three/drei";
 import {
   getCubePosition,
@@ -26,7 +27,7 @@ export function CollaborativeScene() {
       <OrbitControls makeDefault enableDamping />
       <GizmoHelper
         alignment="bottom-right"
-        margin={[80, 80] as unknown as number}
+        margin={[80, 80] as [number, number]}
       >
         <GizmoViewport
           axisColors={["#f87171", "#34d399", "#60a5fa"]}
@@ -73,16 +74,15 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   });
 
   // Drag: make cube follow the pointer on a plane parallel to the camera at the cube's depth
-  const onPointerDown = (e: any) => {
+  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    try {
-      e.target.setPointerCapture?.(e.pointerId);
-    } catch {}
+    const targetEl = e.target as Element & {
+      setPointerCapture?: (pointerId: number) => void;
+    };
+    targetEl.setPointerCapture?.(e.pointerId);
     setIsDragging(true);
-    try {
-      const c: any = controls;
-      if (c) c.enabled = false;
-    } catch {}
+    const c = controls as { enabled?: boolean } | undefined;
+    if (c && typeof c.enabled === "boolean") c.enabled = false;
     if (meshRef.current) {
       const normal = new Vector3();
       camera.getWorldDirection(normal);
@@ -97,18 +97,17 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
       }
     }
   };
-  const onPointerUp = (e: any) => {
+  const onPointerUp = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    try {
-      e.target.releasePointerCapture?.(e.pointerId);
-    } catch {}
+    const targetEl = e.target as Element & {
+      releasePointerCapture?: (pointerId: number) => void;
+    };
+    targetEl.releasePointerCapture?.(e.pointerId);
     setIsDragging(false);
-    try {
-      const c: any = controls;
-      if (c) c.enabled = true;
-    } catch {}
+    const c = controls as { enabled?: boolean } | undefined;
+    if (c && typeof c.enabled === "boolean") c.enabled = true;
   };
-  const onPointerMove = (e: any) => {
+  const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (!isDragging) return;
     e.stopPropagation();
     // Compute intersection with drag plane and follow cursor
