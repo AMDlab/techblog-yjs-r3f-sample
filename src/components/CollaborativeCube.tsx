@@ -30,7 +30,7 @@ export function CollaborativeScene() {
       new Euler(current[0], current[1], current[2], "XYZ")
     );
 
-    // Camera basis vectors in world space
+    // カメラ基準のワールド座標系ベクトルを取得
     const forward = new Vector3();
     camera.getWorldDirection(forward).normalize();
     const up = new Vector3(0, 1, 0)
@@ -41,13 +41,13 @@ export function CollaborativeScene() {
     const axisVec = axis === "x" ? right : axis === "y" ? up : forward;
     const qAxis = new Quaternion().setFromAxisAngle(axisVec, delta);
 
-    // Pre-multiply to rotate around world-space axis defined by camera
+    // カメラ基準のワールド軸まわりに回転させるため前掛けで合成
     const qNext = qAxis.multiply(qCurrent);
     const eNext = new Euler().setFromQuaternion(qNext, "XYZ");
     setCubeRotation([eNext.x, eNext.y, eNext.z]);
   };
 
-  const step = Math.PI / 18; // 10 degrees
+  const step = Math.PI / 18; // 10度
 
   return (
     <>
@@ -92,7 +92,7 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   const [rotation, setRotationState] = useState<Vec3>(getCubeRotation());
   const [isDragging, setIsDragging] = useState(false);
 
-  // Sync from Yjs on remote updates
+  // リモート更新をYjsから購読して同期
   useEffect(() => {
     const observer = () => {
       setPositionState(getCubePosition());
@@ -102,9 +102,9 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
     return () => yCube.unobserve(observer);
   }, []);
 
-  // Removed per-frame rotation. Rotation is now controlled by UI buttons.
+  // フレーム毎の自動回転は削除。回転はUIボタンで制御
 
-  // Drag: make cube follow the pointer on a plane parallel to the camera at the cube's depth
+  // ドラッグ：カメラに平行な平面上でキューブをポインタに追従させる
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     const targetEl = e.target as Element & {
@@ -117,7 +117,7 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
     if (meshRef.current) {
       const normal = new Vector3();
       camera.getWorldDirection(normal);
-      // Plane through current position, normal facing camera direction
+      // 現在位置を通る平面を作成（法線はカメラ方向）
       const pos = meshRef.current.position.clone();
       dragPlaneRef.current.setFromNormalAndCoplanarPoint(normal, pos);
       const hit = e.ray.intersectPlane(dragPlaneRef.current, new Vector3());
@@ -141,7 +141,7 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (!isDragging) return;
     e.stopPropagation();
-    // Compute intersection with drag plane and follow cursor
+    // ドラッグ平面との交点を計算し、カーソルに追従
     const hit = e.ray.intersectPlane(dragPlaneRef.current, new Vector3());
     if (!hit) return;
     const next = hit.add(dragOffsetRef.current);
