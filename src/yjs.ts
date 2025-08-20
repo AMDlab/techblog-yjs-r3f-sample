@@ -4,7 +4,6 @@ import { WebrtcProvider } from "y-webrtc";
 export const ydoc = new Y.Doc();
 
 // Use a stable room name for collaboration.
-// このサンプルでは ROOM_NAME は 'r3f-yjs-demo' に固定です。必要に応じて変更してください。
 export const ROOM_NAME = "r3f-yjs-demo";
 
 // Spin up WebRTC provider (serverless discovery uses public signalling servers by default)
