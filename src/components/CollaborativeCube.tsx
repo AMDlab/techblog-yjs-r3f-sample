@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Mesh, Plane, Vector3 } from "three";
-import { useThree, useFrame } from "@react-three/fiber";
+import { Mesh, Plane, Vector3, Quaternion, Euler } from "three";
+import { useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, GizmoHelper, GizmoViewport } from "@react-three/drei";
+import {
+  OrbitControls,
+  GizmoHelper,
+  GizmoViewport,
+  Html,
+} from "@react-three/drei";
 import {
   getCubePosition,
   getCubeRotation,
@@ -17,6 +22,33 @@ type DraggableCubeProps = {
 };
 
 export function CollaborativeScene() {
+  const { camera } = useThree();
+
+  const rotateByCameraAxis = (axis: "x" | "y" | "z", delta: number) => {
+    const current = getCubeRotation();
+    const qCurrent = new Quaternion().setFromEuler(
+      new Euler(current[0], current[1], current[2], "XYZ")
+    );
+
+    // Camera basis vectors in world space
+    const forward = new Vector3();
+    camera.getWorldDirection(forward).normalize();
+    const up = new Vector3(0, 1, 0)
+      .applyQuaternion(camera.quaternion)
+      .normalize();
+    const right = new Vector3().copy(forward).cross(up).normalize();
+
+    const axisVec = axis === "x" ? right : axis === "y" ? up : forward;
+    const qAxis = new Quaternion().setFromAxisAngle(axisVec, delta);
+
+    // Pre-multiply to rotate around world-space axis defined by camera
+    const qNext = qAxis.multiply(qCurrent);
+    const eNext = new Euler().setFromQuaternion(qNext, "XYZ");
+    setCubeRotation([eNext.x, eNext.y, eNext.z]);
+  };
+
+  const step = Math.PI / 18; // 10 degrees
+
   return (
     <>
       <ambientLight intensity={0.7} />
@@ -34,6 +66,16 @@ export function CollaborativeScene() {
           labelColor="#111827"
         />
       </GizmoHelper>
+      <Html fullscreen>
+        <div className="rotation-controls">
+          <button onClick={() => rotateByCameraAxis("x", +step)}>+X</button>
+          <button onClick={() => rotateByCameraAxis("x", -step)}>-X</button>
+          <button onClick={() => rotateByCameraAxis("y", +step)}>+Y</button>
+          <button onClick={() => rotateByCameraAxis("y", -step)}>-Y</button>
+          <button onClick={() => rotateByCameraAxis("z", +step)}>+Z</button>
+          <button onClick={() => rotateByCameraAxis("z", -step)}>-Z</button>
+        </div>
+      </Html>
     </>
   );
 }
@@ -43,8 +85,6 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
   const dragPlaneRef = useRef<Plane>(new Plane());
   const dragOffsetRef = useRef<Vector3>(new Vector3());
   const { controls, camera } = useThree((s) => ({
-    viewport: s.viewport,
-    size: s.size,
     controls: s.controls,
     camera: s.camera,
   }));
@@ -62,16 +102,7 @@ function DraggableCube({ color = "#f97316" }: DraggableCubeProps) {
     return () => yCube.unobserve(observer);
   }, []);
 
-  // Apply rotation animation if not dragging
-  useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    if (!isDragging) {
-      const r = meshRef.current.rotation;
-      const nextRot: Vec3 = [r.x + delta * 0.3, r.y + delta * 0.5, r.z];
-      setRotationState(nextRot);
-      setCubeRotation(nextRot);
-    }
-  });
+  // Removed per-frame rotation. Rotation is now controlled by UI buttons.
 
   // Drag: make cube follow the pointer on a plane parallel to the camera at the cube's depth
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {

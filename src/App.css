@@ -40,3 +40,17 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Rotation control overlay */
+.rotation-controls {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: ui-sans-serif, system-ui, -apple-system;
+}
+.rotation-controls button {
+  padding: 6px 10px;
+}
